@@ -11,7 +11,7 @@ DEPS = $(OBJS:%.o=%.d)
 
 CXX = c++
 
-CXXFLAGS =	-Wall -Wextra -Werror -Wshadow
+CXXFLAGS =	-Wall -Wextra -Werror -Wshadow -fsanitize=address -g3
 CXXFLAGS +=	-std=c++98
 CXXFLAGS +=	-I inc
 CPPFLAGS = -MMD

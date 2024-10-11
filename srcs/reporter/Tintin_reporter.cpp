@@ -3,12 +3,32 @@
 Tintin_reporter:: Tintin_reporter()
 {
     std::cout << "Defaut constructor" << std::endl;
-	_output_file = "Unsetted";
+
+    _pretty_format = true;
+    _output = &std::cout;
 }
 
-Tintin_reporter:: Tintin_reporter(std::string output_file) : _output_file(output_file)
+Tintin_reporter:: Tintin_reporter(std::string filename)
 {
     std::cout << "Filename constructor" << std::endl;
+
+    _pretty_format = true;
+    if (filename == "/dev/stdout")
+        _output = &std::cout;
+    else if (filename == "/dev/stderr")
+        _output = &std::cerr;
+    else
+    {
+        file.open(filename.c_str(), std::ios::out | std::ios::app);
+        if (!file)
+        {
+            std::cerr << "Cannot open: [" << filename << "] using std::cerr as output" << std::endl;
+            _output = &std::cerr;
+            return ;
+        }
+        _output = &file;
+        _pretty_format = false;
+    }
 }
 
 Tintin_reporter:: Tintin_reporter(const Tintin_reporter& other)
@@ -30,24 +50,61 @@ Tintin_reporter& Tintin_reporter:: operator=(const Tintin_reporter& other)
     return (*this);
 }
 
+void Tintin_reporter:: print_time(void)
+{
+    std::time_t now = std::time(NULL);
+    std::tm* local_time = std::localtime(&now);
+
+    *(_output) << "[" <<  (_pretty_format ? GREY : "")
+              << std::setw(2) << std::setfill('0') << local_time->tm_mday << "/"
+              << std::setw(2) << std::setfill('0') << (local_time->tm_mon + 1) << "/"
+              << (local_time->tm_year + 1900) << "-"
+              << std::setw(2) << std::setfill('0') << local_time->tm_hour << ":"
+              << std::setw(2) << std::setfill('0') << local_time->tm_min << ":"
+              << std::setw(2) << std::setfill('0') << local_time->tm_sec
+              << (_pretty_format ? RESET : "")
+              << "]";
+}
+
+void Tintin_reporter:: print_mode(const std::string mode)
+{
+    std::string color = GREEN;
+
+    if (mode == "DEBUG")
+        color = YELLOW;
+    else if (mode == "INFO")
+        color = GREEN;
+    else if (mode == "WARNING")
+        color = ORANGE;
+    else if (mode == "ERROR")
+        color = RED;
+    *(_output) << " [" << (_pretty_format ? color : "") << mode << (_pretty_format ? RESET : "") << "]" << std::string(8 - mode.length(), ' ') << "- ";
+}
 
 void    Tintin_reporter:: debug(const std::string log)
 {
-    std::cout << "DEBUG: " << log << std::endl;
-    std::cout << "IMPLEMENT FORMAT: [ DD / MM / YYYY - HH : MM : SS ]\n";
+    print_time();
+    print_mode("DEBUG");
+    *(_output) << log << std::endl;
 }
 
 void    Tintin_reporter:: info(const std::string log)
 {
-    std::cout << "INFO: " << log << std::endl; 
+    print_time();
+    print_mode("INFO");
+    *(_output) << log << std::endl;
 }
 
 void    Tintin_reporter:: warning(const std::string log)
 {
-    std::cout << "WARNING: " << log << std::endl;
+    print_time();
+    print_mode("WARNING");
+    *(_output) << log << std::endl;
 }
 
 void    Tintin_reporter:: error(const std::string log)
 {
-    std::cout << "ERROR: " << log << std::endl;
+    print_time();
+    print_mode("ERROR");
+    *(_output) << log << std::endl;
 }
