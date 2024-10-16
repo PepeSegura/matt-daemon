@@ -39,15 +39,12 @@ void Matt_daemon:: create_daemon(void)
     if (pid > 0)
     {
         reporter.info("Matt_daemon: Fork created sucessfully with pid: [" + std::to_string(pid) +  "]");
-    }
-    if (pid == 0)
-    {
         reporter.info("Matt_daemon: Closing first parent");
         exit(EXIT_SUCCESS);
     }
     if (setsid() < 0)
     {
-        reporter.error("Matt_daemon: Failed to create session: " + std::string(strerror(errno)));
+        reporter.warning("Matt_daemon: Failed to create session: " + std::string(strerror(errno)));
     }
     // Fork again to ensure the daemon is not a session leader
     pid = fork();
@@ -65,6 +62,7 @@ void Matt_daemon:: create_daemon(void)
         exit(EXIT_FAILURE);
     }
 
+    reporter.info("Redirecting stdin, stdout and stderr to \"/dev/null\"");
     int dev_null = open("/dev/null", O_RDWR);
     if (dev_null == -1)
     {
