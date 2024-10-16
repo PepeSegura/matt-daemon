@@ -108,4 +108,5 @@ void    Tintin_reporter:: error(const std::string log)
     print_time();
     print_mode("ERROR");
     *(_output) << log << std::endl;
+    exit(EXIT_FAILURE);
 }

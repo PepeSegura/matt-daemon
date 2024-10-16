@@ -3,6 +3,7 @@
 Matt_daemon:: Matt_daemon()
 {
     std::cout << "Matt_daemon: Defaut constructor" << std::endl;
+    this->healthcheck();
     this->create_daemon();
 }
 
@@ -25,6 +26,27 @@ Matt_daemon& Matt_daemon:: operator=(const Matt_daemon& other)
     return (*this);
 }
 
+void Matt_daemon:: healthcheck(void)
+{
+    // Check if calling user is root
+    pid_t calling_process = geteuid();
+    if (calling_process != 0)
+        reporter.error("Matt_daemon: program not running as root");
+    
+    // Creating lockfile
+    int fd_lock = open("/var/lock/Matt_daemon.lock", O_CREAT | O_RDWR, 0666);
+    if (fd_lock == -1)
+        reporter.error("Matt_daemon: Cannot create lock in \"/var/locks\"");
+    
+    // Locking file, or exiting if it is already locked
+    if (flock(fd_lock, LOCK_EX | LOCK_NB) == -1)
+        reporter.error("Matt_daemon: there is already running an instance of Matt_daemon");
+
+    // Release the lock by closing the file descriptor
+    // close(fd_lock);
+    // reporter.info("Lock released");
+}
+
 void Matt_daemon:: create_daemon(void)
 {
     reporter.info("Matt_daemon: create_daemon()");
@@ -34,7 +56,6 @@ void Matt_daemon:: create_daemon(void)
     if (pid < 0)
     {
         reporter.error("Matt_daemon: Error while creating the fork()");
-        exit(EXIT_FAILURE);
     }
     if (pid > 0)
     {
@@ -50,7 +71,6 @@ void Matt_daemon:: create_daemon(void)
     pid = fork();
     if (pid < 0) {
         reporter.error("Matt_daemon: Error while creating the second fork: " + std::string(strerror(errno)));
-        exit(EXIT_FAILURE);
     }
     if (pid > 0) {
         exit(EXIT_SUCCESS);
@@ -59,15 +79,13 @@ void Matt_daemon:: create_daemon(void)
     // Change the working directory
     if (chdir("/") < 0) {
         reporter.error("Matt_daemon: Failed to change directory: " + std::string(strerror(errno)));
-        exit(EXIT_FAILURE);
     }
 
     reporter.info("Redirecting stdin, stdout and stderr to \"/dev/null\"");
     int dev_null = open("/dev/null", O_RDWR);
     if (dev_null == -1)
     {
-        reporter.warning("Matt_daemon: Couldn't open \"/dev/null\": " + std::string(strerror(errno)));
-        exit(EXIT_FAILURE);
+        reporter.error("Matt_daemon: Couldn't open \"/dev/null\": " + std::string(strerror(errno)));
     }
 
     // Redirect stdin, stdout, stderr to /dev/null

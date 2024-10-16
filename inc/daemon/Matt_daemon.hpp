@@ -11,6 +11,7 @@
 # include <unistd.h>
 # include <sys/stat.h>
 # include <sys/types.h>
+# include <sys/file.h>
 # include <fcntl.h>
 # include <cerrno>
 # include <cstring>
@@ -26,5 +27,6 @@ class Matt_daemon
         Matt_daemon(const Matt_daemon &other);
         Matt_daemon& operator=(const Matt_daemon &other);
         
+        void healthcheck(void);
         void create_daemon(void);
 };
