@@ -2,7 +2,7 @@
 
 Tintin_reporter:: Tintin_reporter()
 {
-    std::cout << "Defaut constructor" << std::endl;
+    std::cout << "Tintin_reporter: Defaut constructor" << std::endl;
 
     _pretty_format = true;
     _output = &std::cout;
@@ -10,7 +10,7 @@ Tintin_reporter:: Tintin_reporter()
 
 Tintin_reporter:: Tintin_reporter(std::string filename)
 {
-    std::cout << "Filename constructor" << std::endl;
+    std::cout << "Tintin_reporter: Filename constructor" << std::endl;
 
     _pretty_format = true;
     if (filename == "/dev/stdout")
@@ -19,7 +19,8 @@ Tintin_reporter:: Tintin_reporter(std::string filename)
         _output = &std::cerr;
     else
     {
-        file.open(filename.c_str(), std::ios::out | std::ios::app);
+        //file.open(filename.c_str(), std::ios::out | std::ios::app);
+        file.open(filename.c_str(), std::ios::out);
         if (!file)
         {
             std::cerr << "Cannot open: [" << filename << "] using std::cerr as output" << std::endl;
@@ -33,18 +34,18 @@ Tintin_reporter:: Tintin_reporter(std::string filename)
 
 Tintin_reporter:: Tintin_reporter(const Tintin_reporter& other)
 {
-    std::cout << "Copy constructor" << std::endl;
+    std::cout << "Tintin_reporter: Copy constructor" << std::endl;
     *this = other;
 }
 
 Tintin_reporter:: ~Tintin_reporter()
 {
-    std::cout << "Destructor" << std::endl;
+    std::cout << "Tintin_reporter: Destructor" << std::endl;
 }
 
 Tintin_reporter& Tintin_reporter:: operator=(const Tintin_reporter& other)
 {
-    std::cout << "= operand" << std::endl;
+    std::cout << "Tintin_reporter: = operand" << std::endl;
     if (this != &other)
 		*this = other;
     return (*this);
