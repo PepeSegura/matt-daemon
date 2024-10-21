@@ -3,6 +3,7 @@ NAME = Matt_daemon
 SRCS = 										\
 		srcs/main.cpp						\
 		srcs/daemon/Matt_daemon.cpp			\
+		srcs/daemon/Server.cpp				\
 		srcs/reporter/Tintin_reporter.cpp	\
 
 

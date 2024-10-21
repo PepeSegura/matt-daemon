@@ -1,32 +1,26 @@
 #pragma once
 
 # include "reporter/Tintin_reporter.hpp"
-
-# include <iostream>
-# include <fstream>
-# include <ctime>
-# include <iomanip>
-# include <stdio.h>
-# include <stdlib.h>
-# include <unistd.h>
-# include <sys/stat.h>
-# include <sys/types.h>
-# include <sys/file.h>
-# include <fcntl.h>
-# include <cerrno>
-# include <cstring>
+# include "daemon/Server.hpp"
 
 class Matt_daemon
 {
+    # define LOCK_FILE "/var/lock/Matt_daemon.lock"
     public:
         Matt_daemon();
         ~Matt_daemon();
-
     
     private:
+        int fd_lock;
+
         Matt_daemon(const Matt_daemon &other);
         Matt_daemon& operator=(const Matt_daemon &other);
         
         void healthcheck(void);
         void create_daemon(void);
+        void handle_signals(void);
+
+        static Server create_server() {
+            return Server(); // Create Restricted instance
+        }
 };

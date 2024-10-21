@@ -19,8 +19,8 @@ Tintin_reporter:: Tintin_reporter(std::string filename)
         _output = &std::cerr;
     else
     {
-        //file.open(filename.c_str(), std::ios::out | std::ios::app);
-        file.open(filename.c_str(), std::ios::out);
+        file.open(filename.c_str(), std::ios::out | std::ios::app);
+        // file.open(filename.c_str(), std::ios::out);
         if (!file)
         {
             std::cerr << "Cannot open: [" << filename << "] using std::cerr as output" << std::endl;
