@@ -15,4 +15,6 @@ class Server
 
         Server(const Server &other);
         Server& operator=(const Server &other);
+
+        std::map<int, std::string> clients;
 };

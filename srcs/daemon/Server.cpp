@@ -7,81 +7,83 @@ Server:: Server()
 {
     reporter.debug("Server: Defaut constructor");
     reporter.info("PID: [" + std::to_string(getpid()) + "]");
-
+    // while (end_program == 0)
+    // {
+    //     reporter.debug("Sleeping..");
+    //     sleep(1);
+    // }
     int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
 
-    // Create socket
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0)
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) // Create socket
     {
         perror("Socket failed");
         exit(EXIT_FAILURE);
     }
 
-    // Set socket options
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)))
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) // Set socket options
     {
         perror("Setsockopt failed");
         exit(EXIT_FAILURE);
     }
 
-    // Define the socket address
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    // Bind the socket
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0)
     {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
 
-    // Listen for incoming connections
     if (listen(server_fd, MAX_CLIENTS) < 0)
     {
         perror("Listen failed");
         exit(EXIT_FAILURE);
     }
 
-    std::vector<int> clients; // To hold client socket descriptors
     fd_set readfds;
 
-    reporter.debug("Server is listening on port " + std::to_string(PORT) + "...");
+    reporter.debug("Server is listening on port " + std::to_string(PORT) + " ...");
     while (end_program == 0)
     {
-        // Clear the set
+        // clear read_set
         FD_ZERO(&readfds);
         FD_SET(server_fd, &readfds);
         int max_sd = server_fd;
 
-        // Add client sockets to the set
-        for (int client : clients)
+        // add client sockets to the set
+        for (auto it = clients.begin(); it != clients.end(); ++it)
         {
-            FD_SET(client, &readfds);
-            if (client > max_sd)
-                max_sd = client;
+            int client_socket = it->first;
+            FD_SET(client_socket, &readfds);
+            if (client_socket > max_sd)
+                max_sd = client_socket;
         }
 
-        // Wait for activity on the sockets
-        int activity = select(max_sd + 1, &readfds, nullptr, nullptr, nullptr);
+        // Retry select() if interrupted by a signal
+        int activity;
+        do
+        {
+            activity = select(max_sd + 1, &readfds, nullptr, nullptr, nullptr);
+        } while (activity < 0 && errno == EINTR);
+
         if (activity < 0)
         {
             perror("Select error");
             exit(EXIT_FAILURE);
         }
 
-        // Check if there's an incoming connection on the server socket
         if (FD_ISSET(server_fd, &readfds))
         {
-            if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0)
+            if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) // accept new connection
             {
                 perror("Accept error");
                 exit(EXIT_FAILURE);
             }
-            // Add new socket to clients
             if (clients.size() == MAX_CLIENTS)
             {
                 std::string error_message = "Can't accept the connection, max number of clients reached.";
@@ -90,36 +92,46 @@ Server:: Server()
                 close(new_socket);
                 continue ;
             }
+            // add new socket to clients map
             reporter.debug("New connection accepted.");
-            clients.push_back(new_socket);
+            clients[new_socket] = "";
         }
 
         // Check for activity on client sockets
-        for (size_t i = 0; i < clients.size(); ++i)
+        for (auto it = clients.begin(); it != clients.end(); )
         {
-            int client_socket = clients[i];
+            int client_socket = it->first;
             if (FD_ISSET(client_socket, &readfds))
             {
-                char buffer[131072] = {0};
+                char buffer[1024] = {0};
                 int valread = read(client_socket, buffer, sizeof(buffer));
-                if (valread <= 0)
+                if (valread <= 0) // Client disconnected
                 {
-                    // Client disconnected
                     reporter.debug("Client disconnected.");
                     close(client_socket);
-                    clients.erase(clients.begin() + i);
-                    --i; // Adjust index after erasing
+                    it = clients.erase(it);
                 }
                 else
                 {
-                    std::string message(buffer);
-                    if (!message.empty() && message.back() == '\n')
-                        message.pop_back();
-                    reporter.info("Received: " + message);
+                    it->second += std::string(buffer, valread);
+                    size_t newline_pos;
+                    while ((newline_pos = it->second.find('\n')) != std::string::npos)
+                    {
+                        // Extract complete message
+                        std::string complete_message = it->second.substr(0, newline_pos);
+                        reporter.info("Received from client: " + complete_message);
+
+                        // Remove the processed part from the buffer
+                        it->second.erase(0, newline_pos + 1);
+                    }
+                    ++it;
                 }
             }
+            else
+                ++it;
         }
     }
+    reporter.debug("Closing server");
 }
 
 Server:: Server(const Server& other)

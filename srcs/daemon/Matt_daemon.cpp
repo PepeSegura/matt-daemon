@@ -1,6 +1,6 @@
 #include "Globals.hpp"
 
-static void signal_handler(int signum, siginfo_t *info, void *context)
+void signal_handler(int signum, siginfo_t *info, void *context)
 {
 	(void)info, (void)context;
 	reporter.warning("Signal(" + std::to_string(signum) + ") received: " + strsignal(signum));
@@ -40,7 +40,6 @@ Matt_daemon:: ~Matt_daemon()
 {
 	std::cout << "Matt_daemon: Destructor" << std::endl;
 	reporter.info("Matt_daemon: Destructor");
-	// close(this->fd_lock);
 	unlink(LOCK_FILE);
 }
 
@@ -68,10 +67,6 @@ void Matt_daemon:: healthcheck(void)
 	// Locking file, or exiting if it is already locked
 	if (flock(this->fd_lock, LOCK_EX | LOCK_NB) == -1)
 		reporter.error("Matt_daemon: there is already running an instance of Matt_daemon");
-
-	// Release the lock by closing the file descriptor
-	// close(this->fd_lock);
-	// reporter.info("Lock released");
 }
 
 void Matt_daemon:: create_daemon(void)

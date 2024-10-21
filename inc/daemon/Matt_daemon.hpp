@@ -20,7 +20,7 @@ class Matt_daemon
         void create_daemon(void);
         void handle_signals(void);
 
-        static Server create_server() {
-            return Server(); // Create Restricted instance
+        void create_server() {
+            Server(); // Create Restricted instance
         }
 };
