@@ -19,7 +19,6 @@
 class Tintin_reporter
 {
     public:
-        Tintin_reporter();
         Tintin_reporter(const std::string filename);
         ~Tintin_reporter();
 
@@ -42,6 +41,7 @@ class Tintin_reporter
         void open_file(void);
         void print_buffer(void);
 
+        Tintin_reporter();
         Tintin_reporter(const Tintin_reporter &other);
         Tintin_reporter& operator=(const Tintin_reporter &other);
 };

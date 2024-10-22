@@ -1,23 +1,92 @@
 #include "reporter/Tintin_reporter.hpp"
 
-Tintin_reporter:: Tintin_reporter()
-{
-    std::cout << "Tintin_reporter: Defaut constructor" << std::endl;
 
-    _pretty_format = true;
-    _fd = STDOUT_FILENO;
-}
 
-void Tintin_reporter:: open_file(void)
+#include <sys/stat.h>  // For mkdir
+#include <fcntl.h>     // For open
+#include <unistd.h>    // For close
+#include <errno.h>     // For errno and strerror
+#include <cstring>     // For strerror
+#include <iostream>    // For std::cerr
+#include <string>      // For std::string
+
+void Tintin_reporter::open_file(void)
 {
+    auto create_directories = [](const std::string& path) -> int
+    {
+        size_t pos = 0;
+        std::string current_path;
+
+        while ((pos = path.find('/', pos)) != std::string::npos)
+        {
+            current_path = path.substr(0, pos++);
+            if (!current_path.empty() && mkdir(current_path.c_str(), 0755) && errno != EEXIST)
+            {
+                std::cerr << "Error: Failed to create directory " << current_path << ": " << strerror(errno) << std::endl;
+                return -1;
+            }
+        }
+        if (mkdir(path.c_str(), 0755) && errno != EEXIST)
+        {
+            std::cerr << "Error: Failed to create directory " << path << ": " << strerror(errno) << std::endl;
+            return -1;
+        }
+        return 0;
+    };
+
+    // Extract the directory from _filename
+    size_t dir_pos = _filename.find_last_of('/');
+    if (dir_pos != std::string::npos)
+    {
+        std::string dir_path = _filename.substr(0, dir_pos);
+        if (create_directories(dir_path) == -1)
+        {
+            std::cerr << "Cannot create directory for: [" << _filename << "] using std::cerr as output" << std::endl;
+            _fd = STDERR_FILENO;
+            return ;
+        }
+    }
+
     _fd = open(_filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666);
     if (_fd == -1)
     {
         std::cerr << "Cannot open: [" << _filename << "] using std::cerr as output" << std::endl;
         _fd = STDERR_FILENO;
-        exit(1);
         return ;
     }
+}
+
+
+// static bool file_has_rigths(const std::string &filename)
+// {
+//     struct stat fileStat;
+//     if (stat(filename.c_str(), &fileStat) < 0)
+//         return false;
+//     if ((fileStat.st_mode & S_IRUSR) && (fileStat.st_mode & S_IWUSR))
+//         return true;
+//     return false;
+// }
+
+static bool file_has_rigths(const std::string &filename, int fd)
+{
+    struct stat fileStat;
+    struct stat fdStat;
+
+    // Get the status of the file from the filename
+    if (stat(filename.c_str(), &fileStat) < 0)
+        return false;
+
+    // Get the status of the file from the file descriptor
+    if (fstat(fd, &fdStat) < 0)
+        return false;
+
+    if (fileStat.st_dev == fdStat.st_dev && fileStat.st_ino == fdStat.st_ino)
+    {
+        // Check read and write permissions for the file
+        if ((fileStat.st_mode & S_IRUSR) && (fileStat.st_mode & S_IWUSR))
+            return true;
+    }
+    return false;
 }
 
 Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
@@ -31,20 +100,11 @@ Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
         _fd = STDERR_FILENO;
     else
     {
-        int ret;
-        if ((ret = access(_filename.c_str(), F_OK | R_OK | W_OK)) == -1)
+        if (file_has_rigths(_filename, this->_fd) == false)
         {
-            std::cerr << "File does not exist or lacks permissions (read/write): " << filename << std::endl;
             unlink(_filename.c_str());
-            if (remove(_filename.c_str()) == 0) {
-                std::cerr << "File: " << _filename << "deleted successfully." << std::endl;
-            } else {
-                std::cerr << "Error deleting file: " << _filename  << std::endl;
-                // Print an error message with details if deletion fails
-                perror("Error deleting the file");
-            }
+            remove(_filename.c_str());
         }
-        std::cerr << "ERR: " << ret << std::endl;
         open_file();
         _pretty_format = false;
     }
@@ -91,7 +151,6 @@ void Tintin_reporter:: print_time(void)
 void Tintin_reporter:: print_mode(const std::string mode)
 {
     std::string color = GREEN;
-    std::stringstream buffer;
 
     if (mode == "DEBUG")
         color = YELLOW;
@@ -101,6 +160,8 @@ void Tintin_reporter:: print_mode(const std::string mode)
         color = ORANGE;
     else if (mode == "ERROR")
         color = RED;
+
+    std::stringstream buffer;
     buffer << " [" << (_pretty_format ? color : "") << mode << (_pretty_format ? RESET : "") << "]" << std::string(8 - mode.length(), ' ') << "- ";
 
     this->_log_msg += buffer.str();
@@ -108,11 +169,17 @@ void Tintin_reporter:: print_mode(const std::string mode)
 
 void Tintin_reporter:: print_buffer(void)
 {
-    if (access(_filename.c_str(), F_OK | R_OK | W_OK) == -1)
+    if (file_has_rigths(_filename, this->_fd) == false)
     {
         std::cerr << "File no longer valid, recreating..." << std::endl;
         close(this->_fd);
+        unlink(_filename.c_str());
+        remove(_filename.c_str());
         open_file();
+        std::string old_buffer = this->_log_msg;
+        this->_log_msg = "";
+        error("Tintin_reporter: There was a problem with \"" + _filename + "\". Recreating file...");
+        this->_log_msg = old_buffer;
     }
     write(this->_fd, this->_log_msg.c_str(), this->_log_msg.size());
     this->_log_msg = "";
@@ -123,9 +190,7 @@ void    Tintin_reporter:: debug(const std::string log)
     print_time();
     print_mode("DEBUG");
 
-    std::stringstream buffer;
-    buffer << log << std::endl;
-    this->_log_msg += buffer.str();
+    this->_log_msg += log + "\n";
     print_buffer();
 }
 
@@ -134,9 +199,7 @@ void    Tintin_reporter:: info(const std::string log)
     print_time();
     print_mode("INFO");
 
-    std::stringstream buffer;
-    buffer << log << std::endl;
-    this->_log_msg += buffer.str();
+    this->_log_msg += log + "\n";
     print_buffer();
 }
 
@@ -144,9 +207,8 @@ void    Tintin_reporter:: warning(const std::string log)
 {
     print_time();
     print_mode("WARNING");
-    std::stringstream buffer;
-    buffer << log << std::endl;
-    this->_log_msg += buffer.str();
+
+    this->_log_msg += log + "\n";
     print_buffer();
 }
 
@@ -154,8 +216,7 @@ void    Tintin_reporter:: error(const std::string log)
 {
     print_time();
     print_mode("ERROR");
-    std::stringstream buffer;
-    buffer << log << std::endl;
-    this->_log_msg += buffer.str();
+
+    this->_log_msg += log + "\n";
     print_buffer();
 }

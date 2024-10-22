@@ -1,6 +1,6 @@
 #include "Globals.hpp"
 
-constexpr int PORT = 8080;
+constexpr int PORT = 4242;
 constexpr int MAX_CLIENTS = 3;
 
 Server:: Server()
@@ -101,7 +101,7 @@ Server:: Server()
             int client_socket = it->first;
             if (FD_ISSET(client_socket, &readfds))
             {
-                char buffer[1024] = {0};
+                char buffer[10] = {0};
                 int valread = read(client_socket, buffer, sizeof(buffer));
                 if (valread <= 0) // Client disconnected
                 {
@@ -117,7 +117,13 @@ Server:: Server()
                     {
                         // Extract complete message
                         std::string complete_message = it->second.substr(0, newline_pos);
-                        reporter.info("Matt_daemon: Message received: " + complete_message);
+                        if (complete_message == "quit")
+                        {
+                            reporter.info("Matt_daemon: quit received, closing server.");
+                            end_program = 1;
+                        }
+                        else
+                            reporter.info("Matt_daemon: Message received: " + complete_message);
 
                         // Remove the processed part from the buffer
                         it->second.erase(0, newline_pos + 1);

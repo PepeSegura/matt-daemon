@@ -26,7 +26,7 @@ Matt_daemon:: Matt_daemon()
 	reporter.info("Matt_daemon: Defaut constructor");
 	this->handle_signals();
 	this->healthcheck();
-	// this->create_daemon();
+	this->create_daemon();
 	this->create_server();
 }
 
@@ -57,16 +57,28 @@ void Matt_daemon:: healthcheck(void)
 	// Check if calling user is root
 	pid_t calling_process = geteuid();
 	if (calling_process != 0)
+	{
 		reporter.error("Matt_daemon: program not running as root");
+		// reporter.~Tintin_reporter();
+		exit(EXIT_FAILURE);
+	}
 	
 	// Creating lockfile
 	this->fd_lock = open(LOCK_FILE, O_CREAT | O_RDWR, 0666);
 	if (this->fd_lock == -1)
+	{
 		reporter.error("Matt_daemon: Cannot create lock in \"/var/locks\"");
+		// reporter.~Tintin_reporter();
+		exit(EXIT_FAILURE);
+	}
 	
 	// Locking file, or exiting if it is already locked
 	if (flock(this->fd_lock, LOCK_EX | LOCK_NB) == -1)
+	{
 		reporter.error("Matt_daemon: there is already running an instance of Matt_daemon");
+		// reporter.~Tintin_reporter();
+		exit(EXIT_FAILURE);
+	}
 }
 
 void Matt_daemon:: create_daemon(void)
@@ -75,32 +87,44 @@ void Matt_daemon:: create_daemon(void)
 	pid_t pid;
 
 	pid = fork();
-	if (pid < 0)
+	if (pid < 0) // Error
 	{
 		reporter.error("Matt_daemon: Error while creating the fork()");
+		exit(EXIT_FAILURE);
 	}
-	if (pid > 0)
+	if (pid > 0) // Parent
 	{
-		reporter.info("Matt_daemon: Fork created sucessfully with pid: [" + std::to_string(pid) +  "]");
+		reporter.info("Matt_daemon: First Fork created sucessfully with pid: [" + std::to_string(pid) +  "]");
 		reporter.info("Matt_daemon: Closing first parent");
 		exit(EXIT_SUCCESS);
 	}
+	usleep(250 * 1000);
+	// In the first child process
 	if (setsid() < 0)
 	{
-		reporter.warning("Matt_daemon: Failed to create session: " + std::string(strerror(errno)));
+		reporter.error("Matt_daemon: Failed to create session: " + std::string(strerror(errno)));
+		exit(EXIT_FAILURE);
 	}
 	// Fork again to ensure the daemon is not a session leader
 	pid = fork();
-	if (pid < 0) {
+	if (pid < 0) // Errror
+	{
 		reporter.error("Matt_daemon: Error while creating the second fork: " + std::string(strerror(errno)));
+		exit(EXIT_FAILURE);
 	}
-	if (pid > 0) {
+	if (pid > 0) // Parent
+	{
+		reporter.info("Matt_daemon: Second Fork created sucessfully with pid: [" + std::to_string(pid) +  "]");
+		reporter.info("Matt_daemon: Closing second parent");
 		exit(EXIT_SUCCESS);
 	}
-
+	usleep(250 * 1000);
+	// In the second child process (daemon)
 	// Change the working directory
-	if (chdir("/") < 0) {
+	if (chdir("/") < 0)
+	{
 		reporter.error("Matt_daemon: Failed to change directory: " + std::string(strerror(errno)));
+		exit(EXIT_FAILURE);
 	}
 
 	reporter.info("Redirecting stdin, stdout and stderr to \"/dev/null\"");
@@ -108,6 +132,7 @@ void Matt_daemon:: create_daemon(void)
 	if (dev_null == -1)
 	{
 		reporter.error("Matt_daemon: Couldn't open \"/dev/null\": " + std::string(strerror(errno)));
+		exit(EXIT_FAILURE);
 	}
 
 	// Redirect stdin, stdout, stderr to /dev/null
