@@ -5,6 +5,8 @@
 # include <ctime>
 # include <iomanip>
 # include <unistd.h>
+# include <fcntl.h>
+# include <sys/stat.h>
 
 # define RESET  "\033[0m"
 # define GREY   "\033[38;5;240m"
@@ -28,12 +30,17 @@ class Tintin_reporter
     
     private:
         std::ostream*   _output;
-        std::ofstream   file;
+        std::ofstream   _file;
+        std::string     _filename;
+        std::string     _log_msg;
+        int             _fd;
         bool            _pretty_format;
 
 
         void print_time(void);
         void print_mode(const std::string mode);
+        void open_file(void);
+        void print_buffer(void);
 
         Tintin_reporter(const Tintin_reporter &other);
         Tintin_reporter& operator=(const Tintin_reporter &other);

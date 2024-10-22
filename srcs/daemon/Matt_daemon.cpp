@@ -26,7 +26,7 @@ Matt_daemon:: Matt_daemon()
 	reporter.info("Matt_daemon: Defaut constructor");
 	this->handle_signals();
 	this->healthcheck();
-	this->create_daemon();
+	// this->create_daemon();
 	this->create_server();
 }
 

@@ -5,29 +5,47 @@ Tintin_reporter:: Tintin_reporter()
     std::cout << "Tintin_reporter: Defaut constructor" << std::endl;
 
     _pretty_format = true;
-    _output = &std::cout;
+    _fd = STDOUT_FILENO;
 }
 
-Tintin_reporter:: Tintin_reporter(std::string filename)
+void Tintin_reporter:: open_file(void)
+{
+    _fd = open(_filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666);
+    if (_fd == -1)
+    {
+        std::cerr << "Cannot open: [" << _filename << "] using std::cerr as output" << std::endl;
+        _fd = STDERR_FILENO;
+        exit(1);
+        return ;
+    }
+}
+
+Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
 {
     std::cout << "Tintin_reporter: Filename constructor" << std::endl;
 
     _pretty_format = true;
-    if (filename == "/dev/stdout")
-        _output = &std::cout;
-    else if (filename == "/dev/stderr")
-        _output = &std::cerr;
+    if (_filename == "/dev/stdout")
+        _fd = STDOUT_FILENO;
+    else if (_filename == "/dev/stderr")
+        _fd = STDERR_FILENO;
     else
     {
-        file.open(filename.c_str(), std::ios::out | std::ios::app);
-        // file.open(filename.c_str(), std::ios::out);
-        if (!file)
+        int ret;
+        if ((ret = access(_filename.c_str(), F_OK | R_OK | W_OK)) == -1)
         {
-            std::cerr << "Cannot open: [" << filename << "] using std::cerr as output" << std::endl;
-            _output = &std::cerr;
-            return ;
+            std::cerr << "File does not exist or lacks permissions (read/write): " << filename << std::endl;
+            unlink(_filename.c_str());
+            if (remove(_filename.c_str()) == 0) {
+                std::cerr << "File: " << _filename << "deleted successfully." << std::endl;
+            } else {
+                std::cerr << "Error deleting file: " << _filename  << std::endl;
+                // Print an error message with details if deletion fails
+                perror("Error deleting the file");
+            }
         }
-        _output = &file;
+        std::cerr << "ERR: " << ret << std::endl;
+        open_file();
         _pretty_format = false;
     }
 }
@@ -56,7 +74,8 @@ void Tintin_reporter:: print_time(void)
     std::time_t now = std::time(NULL);
     std::tm* local_time = std::localtime(&now);
 
-    *(_output) << "[" <<  (_pretty_format ? GREY : "")
+    std::stringstream buffer;
+    buffer << "[" <<  (_pretty_format ? GREY : "")
               << std::setw(2) << std::setfill('0') << local_time->tm_mday << "/"
               << std::setw(2) << std::setfill('0') << (local_time->tm_mon + 1) << "/"
               << (local_time->tm_year + 1900) << "-"
@@ -65,11 +84,14 @@ void Tintin_reporter:: print_time(void)
               << std::setw(2) << std::setfill('0') << local_time->tm_sec
               << (_pretty_format ? RESET : "")
               << "]";
+
+    this->_log_msg += buffer.str();
 }
 
 void Tintin_reporter:: print_mode(const std::string mode)
 {
     std::string color = GREEN;
+    std::stringstream buffer;
 
     if (mode == "DEBUG")
         color = YELLOW;
@@ -79,34 +101,61 @@ void Tintin_reporter:: print_mode(const std::string mode)
         color = ORANGE;
     else if (mode == "ERROR")
         color = RED;
-    *(_output) << " [" << (_pretty_format ? color : "") << mode << (_pretty_format ? RESET : "") << "]" << std::string(8 - mode.length(), ' ') << "- ";
+    buffer << " [" << (_pretty_format ? color : "") << mode << (_pretty_format ? RESET : "") << "]" << std::string(8 - mode.length(), ' ') << "- ";
+
+    this->_log_msg += buffer.str();
+}
+
+void Tintin_reporter:: print_buffer(void)
+{
+    if (access(_filename.c_str(), F_OK | R_OK | W_OK) == -1)
+    {
+        std::cerr << "File no longer valid, recreating..." << std::endl;
+        close(this->_fd);
+        open_file();
+    }
+    write(this->_fd, this->_log_msg.c_str(), this->_log_msg.size());
+    this->_log_msg = "";
 }
 
 void    Tintin_reporter:: debug(const std::string log)
 {
     print_time();
     print_mode("DEBUG");
-    *(_output) << log << std::endl;
+
+    std::stringstream buffer;
+    buffer << log << std::endl;
+    this->_log_msg += buffer.str();
+    print_buffer();
 }
 
 void    Tintin_reporter:: info(const std::string log)
 {
     print_time();
     print_mode("INFO");
-    *(_output) << log << std::endl;
+
+    std::stringstream buffer;
+    buffer << log << std::endl;
+    this->_log_msg += buffer.str();
+    print_buffer();
 }
 
 void    Tintin_reporter:: warning(const std::string log)
 {
     print_time();
     print_mode("WARNING");
-    *(_output) << log << std::endl;
+    std::stringstream buffer;
+    buffer << log << std::endl;
+    this->_log_msg += buffer.str();
+    print_buffer();
 }
 
 void    Tintin_reporter:: error(const std::string log)
 {
     print_time();
     print_mode("ERROR");
-    *(_output) << log << std::endl;
-    exit(EXIT_FAILURE);
+    std::stringstream buffer;
+    buffer << log << std::endl;
+    this->_log_msg += buffer.str();
+    print_buffer();
 }
