@@ -101,7 +101,7 @@ Server:: Server()
             int client_socket = it->first;
             if (FD_ISSET(client_socket, &readfds))
             {
-                char buffer[10] = {0};
+                char buffer[1024] = {0};
                 int valread = read(client_socket, buffer, sizeof(buffer));
                 if (valread <= 0) // Client disconnected
                 {
