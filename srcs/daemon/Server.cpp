@@ -3,6 +3,49 @@
 constexpr int PORT = 4242;
 constexpr int MAX_CLIENTS = 3;
 
+#include <memory>
+
+std::string execute_command(const std::string &command)
+{
+    std::string result;
+    std::array<char, 128> buffer;
+    std::string full_command = command + " 2>&1";
+    std::shared_ptr<FILE> pipe(popen(full_command.c_str(), "r"), pclose);
+
+    if (!pipe)
+    {
+        reporter.info("popen() failed!");
+        return result;
+    }
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+        result += buffer.data();
+
+    return result;
+}
+
+static void parse_message(std::string message, int client_socket)
+{
+    if (message == "quit")
+    {
+        reporter.info("Matt_daemon: quit received, closing server.");
+        end_program = 1;
+    }
+    else if (message.find("shell: ") == 0)
+    {
+        std::string command = message.substr(7);
+        reporter.info("Matt_daemon: Command received: " + command);
+
+        // Execute the command and get the output
+        std::string output = execute_command(command);
+
+        // Send the output back to the client
+        send(client_socket, output.c_str(), output.size(), 0);
+    }
+    else
+        reporter.info("Matt_daemon: Message received: " + message);
+}
+
 Server:: Server()
 {
     reporter.info("Matt_daemon: Creating Server.");
@@ -116,14 +159,7 @@ Server:: Server()
                     while ((newline_pos = it->second.find('\n')) != std::string::npos)
                     {
                         // Extract complete message
-                        std::string complete_message = it->second.substr(0, newline_pos);
-                        if (complete_message == "quit")
-                        {
-                            reporter.info("Matt_daemon: quit received, closing server.");
-                            end_program = 1;
-                        }
-                        else
-                            reporter.info("Matt_daemon: Message received: " + complete_message);
+                        parse_message(it->second.substr(0, newline_pos), client_socket);
 
                         // Remove the processed part from the buffer
                         it->second.erase(0, newline_pos + 1);
