@@ -32,6 +32,7 @@ GUIClient::GUIClient() {
                 recv_buffer += response;
                 update_chat_log(recv_buffer);
                 recv_buffer.clear();
+                draw_chat_log(input_text);
             }
         }
 
@@ -60,7 +61,7 @@ GUIClient::GUIClient() {
                     if (scroll_position > 0) {
                         scroll_position--;
                     }
-                } else {
+                } else if (isprint(buffer[0])) {
                     input_text += buffer[0];
                 }
                 draw_chat_log(input_text);
