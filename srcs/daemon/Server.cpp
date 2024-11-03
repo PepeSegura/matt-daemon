@@ -26,11 +26,13 @@ std::string execute_command(const std::string &command)
 
 static void parse_message(std::string message, int client_socket)
 {
+    (void)client_socket;
     if (message == "quit")
     {
         reporter.info("Matt_daemon: quit received, closing server.");
         end_program = 1;
     }
+    # ifdef BONUS
     else if (message.find("shell: ") == 0)
     {
         std::string command = message.substr(7);
@@ -42,6 +44,7 @@ static void parse_message(std::string message, int client_socket)
         // Send the output back to the client
         send(client_socket, output.c_str(), output.size(), 0);
     }
+    #endif
     else
         reporter.info("Matt_daemon: Message received: " + message);
 }

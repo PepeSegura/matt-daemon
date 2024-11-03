@@ -7,26 +7,25 @@ SRCS = 										\
 		srcs/reporter/Tintin_reporter.cpp	\
 
 
-OBJS = $(SRCS:%.cpp=objs/%.o)
+OBJS = $(patsubst srcs/%.cpp, objs/srcs/%.o, $(SRCS))
 DEPS = $(OBJS:%.o=%.d)
 
 CXX = c++
 
 CXXFLAGS = -Wall -Wextra -Werror -Wshadow -fsanitize=address -g3
 CXXFLAGS +=	-I inc
+
 CPPFLAGS = -MMD
 
-$(NAME): objs $(OBJS)
+$(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
-objs:
-	@mkdir -p objs/srcs/daemon objs/srcs/reporter
-
-objs/%.o: %.cpp
+objs/srcs/%.o: ./srcs/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-debug:: CXXFLAGS += -D DEBUG -g3 -fsanitize=address
-debug:: re
+bonus:: CXXFLAGS += -D BONUS
+bonus:: re
 
 all: $(NAME)
 
@@ -41,4 +40,4 @@ re:: all
 
 -include $(DEPS)
 
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re bonus
