@@ -26,7 +26,9 @@
 *.a
 *.lib
 
-# Executables
+# Executables :roto2:
+Matt_daemon
+Ben_AFK
 *.exe
 *.out
 *.app
