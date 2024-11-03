@@ -9,6 +9,7 @@ int main() {
 GUIClient::GUIClient() {
     std::string input_text;
     std::string recv_buffer = "";
+    display = NULL;
 
     connect_to_server();
 
