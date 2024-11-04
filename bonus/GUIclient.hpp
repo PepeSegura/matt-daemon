@@ -9,6 +9,7 @@
 #include <sys/select.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#define BACKGROUND_PATH "assets/darkzuaje.jpg"
 
 class GUIClient {
     public:
@@ -17,11 +18,11 @@ class GUIClient {
 
     private:
         /* PRIVATE VARS/CONSTS */
-        const int WINDOW_WIDTH = 800;
-        const int WINDOW_HEIGHT = 600;
+        const int WINDOW_WIDTH = 1200;
+        const int WINDOW_HEIGHT = 900;
         const char *SERVER_IP = "127.0.0.1";
         const int SERVER_PORT = 4242;
-        const int LINE_HEIGHT = 20; // Height of each line of text for rendering
+        const int LINE_HEIGHT = 25; // Height of each line of text for rendering
 
         Display *display;
         Window window;
@@ -30,7 +31,8 @@ class GUIClient {
 
         fd_set completeSet, readSet, writeSet;
 
-        bool running = true;
+        bool running;
+        XImage *background;
 
         // Chat log and scroll position
         std::vector<std::string> chat_log;
@@ -43,8 +45,10 @@ class GUIClient {
         void        connect_to_server();
         void        send_message(const std::string &message);
         std::string receive_message();
-        void        update_chat_log(const std::string &text);
+        void        update_chat_log(std::string &text);
         void        draw_text(const std::string &text, int x, int y);
         void        draw_chat_log(std::string input_text);
+        XImage      *load_background_image(const char *filepath);
+        void        draw_background(XImage *ximage);
 
 };

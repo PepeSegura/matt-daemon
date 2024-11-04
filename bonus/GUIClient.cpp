@@ -1,5 +1,8 @@
 #include "GUIclient.hpp"
-    
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h" //for loading images
+
 int main() {
     GUIClient client;
 
@@ -10,6 +13,7 @@ GUIClient::GUIClient() {
     std::string input_text;
     std::string recv_buffer = "";
     display = NULL;
+    running = true;
 
     connect_to_server();
 
@@ -31,7 +35,6 @@ GUIClient::GUIClient() {
             if (!response.empty()) {
                 recv_buffer += response;
                 update_chat_log(recv_buffer);
-                recv_buffer.clear();
                 draw_chat_log(input_text);
             }
         }
@@ -61,6 +64,8 @@ GUIClient::GUIClient() {
                     if (scroll_position > 0) {
                         scroll_position--;
                     }
+                } else if (keysym == XK_Escape) {
+                    running = false;
                 } else if (isprint(buffer[0])) {
                     input_text += buffer[0];
                 }
@@ -95,6 +100,13 @@ void GUIClient::setup_x11() {
 
     wmDeleteMessage = XInternAtom(display, "WM_DELETE_WINDOW", False); //register window close event
     XSetWMProtocols(display, window, &wmDeleteMessage, 1);
+
+    background = load_background_image(BACKGROUND_PATH);
+    if (!background) {
+        std::cerr << "Unable to load background image, exiting...\n";
+        running = false;
+        return ;
+    }
 }
 
 void GUIClient::connect_to_server() {
@@ -150,11 +162,11 @@ std::string GUIClient::receive_message() {
     return std::string(buffer, bytes_received);
 }
 
-void GUIClient::update_chat_log(const std::string &text) {
-    size_t pos = 0, prev_pos = 0;
-    while ((pos = text.find('\n', prev_pos)) != std::string::npos) {
-        chat_log.push_back("Received: " + text.substr(prev_pos, pos - prev_pos));
-        prev_pos = pos + 1;
+void GUIClient::update_chat_log(std::string &text) {
+    size_t pos = 0;
+    while ((pos = text.find('\n')) != std::string::npos) {
+        chat_log.push_back("Received: " + text.substr(0, pos));
+        text = text.substr(pos + 1);
     }
 }
 
@@ -164,9 +176,12 @@ void GUIClient::draw_text(const std::string &text, int x, int y) {
 
 void GUIClient::draw_chat_log(std::string input_text) {
     XClearWindow(display, window);
-    int start_line = std::max(0, (int)chat_log.size() - scroll_position - (WINDOW_HEIGHT / LINE_HEIGHT));
-    int end_line = std::min((int)chat_log.size(), start_line + (WINDOW_HEIGHT / LINE_HEIGHT));
-    draw_text(input_text, 50, 20);
+    draw_background(background);
+    XSetForeground(display, gc, 0xffffff);
+    int start_line = std::max(0, (int)chat_log.size() - scroll_position - (int)((WINDOW_HEIGHT / LINE_HEIGHT) * 0.8));
+    int end_line = std::min((int)chat_log.size(), start_line + (int)((WINDOW_HEIGHT / LINE_HEIGHT) * 0.8));
+    draw_text("Input:", 50, 790);
+    draw_text(input_text, 50, 820);
     for (int i = start_line; i < end_line; ++i) {
         draw_text(chat_log[i], 50, 50 + LINE_HEIGHT * (i - start_line));
     }
@@ -184,4 +199,67 @@ void GUIClient::cleanup() {
     if (socket_fd >= 0) {
         close(socket_fd);
     }
+
+    if (background) {
+        delete[] background->data;
+        background->data = nullptr;
+        XDestroyImage(background);
+    }
+}
+
+XImage *GUIClient::load_background_image(const char *filepath) {
+    int width, height, channels;
+    unsigned char *image_data = stbi_load(filepath, &width, &height, &channels, 4);  // Load image with 4 channels (RGBA)
+    
+    if (!image_data) {
+        std::cerr << "Failed to load image: " << filepath << "\n";
+        return nullptr;
+    }
+
+    // Convert from RGBA to BGRA
+    for (int i = 0; i < width * height; ++i) {
+        unsigned char* pixel = image_data + i * 4;
+
+        // Swap the Red and Blue channels
+        std::swap(pixel[0], pixel[2]);
+    }
+
+    // Allocate memory for the rotated image (rotated width and height)
+    unsigned char* rotated_data = new unsigned char[width * height * 4];  // 4 bytes per pixel (BGRA)
+
+    // Rotate by 90 degrees counterclockwise
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            // Source pixel in original image
+            unsigned char* src_pixel = image_data + ((y * width + x) * 4);
+            
+            // Destination pixel in rotated image
+            int rotated_x = height - y - 1;
+            int rotated_y = x;
+            unsigned char* dst_pixel = rotated_data + ((rotated_y * height + rotated_x) * 4);
+
+            // Copy pixel data
+            std::memcpy(dst_pixel, src_pixel, 4);
+        }
+    }
+
+    // Free the original image data
+    stbi_image_free(image_data);
+
+    // Create an XImage from the rotated data
+    XImage* ximage = XCreateImage(display, DefaultVisual(display, 0), DefaultDepth(display, 0), ZPixmap, 0,
+                                  (char*)rotated_data, height, width, 32, 0);
+
+    if (!ximage) {
+        std::cerr << "Failed to create XImage\n";
+        delete[] rotated_data;  // Free rotated data if XImage creation failed
+        return nullptr;
+    }
+
+    return ximage;  // Note: rotated_data is owned by ximage now
+}
+
+void GUIClient::draw_background(XImage *ximage) {
+    XPutImage(display, window, gc, ximage, 0, 0, 0, 0, ximage->width, ximage->height);
+    XFlush(display);  // Flush the display to ensure the image is shown
 }
