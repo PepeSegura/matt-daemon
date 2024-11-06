@@ -4,24 +4,27 @@ constexpr int PORT = 4242;
 constexpr int MAX_CLIENTS = 3;
 
 #include <memory>
+#define MAGIC_NBR 250000
 
-std::string execute_command(const std::string &command)
+static void execute_command(const std::string &command, int client_socket)
 {
-    std::string result;
     std::array<char, 128> buffer;
-    std::string full_command = command + " 2>&1";
+    std::string full_command = "timeout 2 bash -c '" + command + "' 2>&1";
     std::shared_ptr<FILE> pipe(popen(full_command.c_str(), "r"), pclose);
 
     if (!pipe)
     {
-        reporter.info("popen() failed!");
-        return result;
+        reporter.error("popen() failed!");
+        end_program = 1;
     }
 
-    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
-        result += buffer.data();
+    int total_written = 0;
+    while (total_written < MAGIC_NBR && fgets(buffer.data(), 128, pipe.get()) != nullptr)
+    {
+        total_written += buffer.size();
+        send(client_socket, buffer.data(), strlen(buffer.data()), 0);
+    }
 
-    return result;
 }
 
 static void parse_message(std::string message, int client_socket)
@@ -39,10 +42,7 @@ static void parse_message(std::string message, int client_socket)
         reporter.info("Matt_daemon: Command received: " + command);
 
         // Execute the command and get the output
-        std::string output = execute_command(command);
-
-        // Send the output back to the client
-        send(client_socket, output.c_str(), output.size(), 0);
+        execute_command(command, client_socket);
     }
     #endif
     else
