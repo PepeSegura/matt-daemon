@@ -3,6 +3,52 @@
 constexpr int PORT = 4242;
 constexpr int MAX_CLIENTS = 3;
 
+#include <memory>
+#define MAGIC_NBR 250000
+
+static void execute_command(const std::string &command, int client_socket)
+{
+    std::array<char, 128> buffer;
+    std::string full_command = "timeout 2 bash -c '" + command + "' 2>&1";
+    std::shared_ptr<FILE> pipe(popen(full_command.c_str(), "r"), pclose);
+
+    if (!pipe)
+    {
+        reporter.error("popen() failed!");
+        end_program = 1;
+    }
+
+    int total_written = 0;
+    while (total_written < MAGIC_NBR && fgets(buffer.data(), 128, pipe.get()) != nullptr)
+    {
+        total_written += buffer.size();
+        send(client_socket, buffer.data(), strlen(buffer.data()), 0);
+    }
+
+}
+
+static void parse_message(std::string message, int client_socket)
+{
+    (void)client_socket;
+    if (message == "quit")
+    {
+        reporter.info("Matt_daemon: quit received, closing server.");
+        end_program = 1;
+    }
+    # ifdef BONUS
+    else if (message.find("shell: ") == 0)
+    {
+        std::string command = message.substr(7);
+        reporter.info("Matt_daemon: Command received: " + command);
+
+        // Execute the command and get the output
+        execute_command(command, client_socket);
+    }
+    #endif
+    else
+        reporter.info("Matt_daemon: Message received: " + message);
+}
+
 Server:: Server()
 {
     reporter.info("Matt_daemon: Creating Server.");
@@ -116,14 +162,7 @@ Server:: Server()
                     while ((newline_pos = it->second.find('\n')) != std::string::npos)
                     {
                         // Extract complete message
-                        std::string complete_message = it->second.substr(0, newline_pos);
-                        if (complete_message == "quit")
-                        {
-                            reporter.info("Matt_daemon: quit received, closing server.");
-                            end_program = 1;
-                        }
-                        else
-                            reporter.info("Matt_daemon: Message received: " + complete_message);
+                        parse_message(it->second.substr(0, newline_pos), client_socket);
 
                         // Remove the processed part from the buffer
                         it->second.erase(0, newline_pos + 1);

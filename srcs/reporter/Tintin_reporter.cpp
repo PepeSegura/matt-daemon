@@ -1,51 +1,70 @@
 #include "reporter/Tintin_reporter.hpp"
 
+void Tintin_reporter::backup_file(void)
+{
+    std::time_t now = std::time(NULL);
+    std::tm* local_time = std::localtime(&now);
 
+    std::stringstream timestamp;
+    timestamp  << (local_time->tm_year + 1900) << "-"
+            << std::setw(2) << std::setfill('0') << (local_time->tm_mon + 1) << "-"
+            << std::setw(2) << std::setfill('0') << local_time->tm_mday << "--"
+            << std::setw(2) << std::setfill('0') << local_time->tm_hour << "-"
+            << std::setw(2) << std::setfill('0') << local_time->tm_min << "-"
+            << std::setw(2) << std::setfill('0') << local_time->tm_sec;
 
-#include <sys/stat.h>  // For mkdir
-#include <fcntl.h>     // For open
-#include <unistd.h>    // For close
-#include <errno.h>     // For errno and strerror
-#include <cstring>     // For strerror
-#include <iostream>    // For std::cerr
-#include <string>      // For std::string
+    std::ostringstream backup_filename;
+    backup_filename << _backup_dir << "/matt_daemon--" << timestamp.str() << ".backup";
+
+    std::ifstream src(_filename);
+    std::ofstream dest(backup_filename.str(), std::ios::trunc);
+
+    if (!src.is_open() || !dest.is_open())
+    {
+        std::cerr << "Error: Could not open log or backup file for copying.\n";
+        return;
+    }
+
+    dest << src.rdbuf();
+    src.close();
+    dest.close();
+
+    _fd = open(_filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0666);
+    if (_fd == -1)
+    {
+        _fd = STDERR_FILENO;
+        std::cerr << "Cannot reopen: [" << _filename << "] using std::cerr as output" << std::endl;
+        return;
+    }
+    close(_fd);
+}
+
+static bool create_directories(const std::string& path)
+{
+    size_t pos = 0;
+    std::string current_path;
+
+    while ((pos = path.find('/', pos)) != std::string::npos)
+    {
+        current_path = path.substr(0, pos++);
+        if (!current_path.empty() && mkdir(current_path.c_str(), 0755) && errno != EEXIST)
+        {
+            std::cerr << "Error: Failed to create directory " << current_path << ": " << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+    if (mkdir(path.c_str(), 0755) && errno != EEXIST)
+    {
+        std::cerr << "Error: Failed to create directory " << path << ": " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
+}
 
 void Tintin_reporter::open_file(void)
 {
-    auto create_directories = [](const std::string& path) -> int
-    {
-        size_t pos = 0;
-        std::string current_path;
-
-        while ((pos = path.find('/', pos)) != std::string::npos)
-        {
-            current_path = path.substr(0, pos++);
-            if (!current_path.empty() && mkdir(current_path.c_str(), 0755) && errno != EEXIST)
-            {
-                std::cerr << "Error: Failed to create directory " << current_path << ": " << strerror(errno) << std::endl;
-                return -1;
-            }
-        }
-        if (mkdir(path.c_str(), 0755) && errno != EEXIST)
-        {
-            std::cerr << "Error: Failed to create directory " << path << ": " << strerror(errno) << std::endl;
-            return -1;
-        }
-        return 0;
-    };
-
-    // Extract the directory from _filename
-    size_t dir_pos = _filename.find_last_of('/');
-    if (dir_pos != std::string::npos)
-    {
-        std::string dir_path = _filename.substr(0, dir_pos);
-        if (create_directories(dir_path) == -1)
-        {
-            _fd = STDERR_FILENO;
-            std::cerr << "Cannot create directory for: [" << _filename << "] using std::cerr as output" << std::endl;
-            return ;
-        }
-    }
+    if (!create_directories(_backup_dir))
+        std::cerr << "Error: Failed to create backup directory structure.\n";
 
     _fd = open(_filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666);
     if (_fd == -1)
@@ -56,44 +75,25 @@ void Tintin_reporter::open_file(void)
     }
 }
 
-// static bool file_has_rigths(const std::string &filename, int fd)
-// {
-//     struct stat fileStat;
-//     struct stat fdStat;
-
-//     // Get the status of the file from the filename
-//     if (stat(filename.c_str(), &fileStat) < 0)
-//         return false;
-
-//     // Get the status of the file from the file descriptor
-//     if (fstat(fd, &fdStat) < 0)
-//         return false;
-
-//     if (fileStat.st_dev == fdStat.st_dev && fileStat.st_ino == fdStat.st_ino)
-//     {
-//         // Check read and write permissions for the file
-//         if ((fileStat.st_mode & S_IRUSR) && (fileStat.st_mode & S_IWUSR))
-//             return true;
-//     }
-//     return false;
-// }
-
 Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
 {
-    // std::cout << "Tintin_reporter: Filename constructor" << std::endl;
-
     _pretty_format = true;
+
+    size_t dir_pos = _filename.find_last_of('/');
+    if (dir_pos != std::string::npos)
+        _backup_dir = _filename.substr(0, dir_pos) + "/backups";
+    else
+        _backup_dir = "backups";
+
+    if (!create_directories(_backup_dir))
+        std::cerr << "Error: Failed to create backup directory structure.\n";
+
     if (_filename == "/dev/stdout")
         _fd = STDOUT_FILENO;
     else if (_filename == "/dev/stderr")
         _fd = STDERR_FILENO;
     else
     {
-        // if (file_has_rigths(_filename, this->_fd) == false)
-        // {
-        //     unlink(_filename.c_str());
-        //     remove(_filename.c_str());
-        // }
         open_file();
         _pretty_format = false;
     }
@@ -101,13 +101,11 @@ Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
 
 Tintin_reporter:: Tintin_reporter(const Tintin_reporter& other)
 {
-    std::cout << "Tintin_reporter: Copy constructor" << std::endl;
     *this = other;
 }
 
 Tintin_reporter:: ~Tintin_reporter()
 {
-    // std::cout << "Tintin_reporter: Destructor" << std::endl;
     close(this->_fd);
 }
 
@@ -157,23 +155,23 @@ void Tintin_reporter:: print_mode(const std::string mode)
     this->_log_msg += buffer.str();
 }
 
+size_t get_file_size(const std::string& filename)
+{
+    struct stat st;
+    if (stat(filename.c_str(), &st) == 0)
+        return st.st_size;
+    return 0;
+}
+
 void Tintin_reporter:: print_buffer(void)
 {
+    if (get_file_size(_filename) + _log_msg.size() > MAX_FILE_SIZE)
+        backup_file();
+
     open_file();
-    // if (file_has_rigths(_filename, this->_fd) == false)
-    // {
-    //     std::cerr << "File no longer valid, recreating..." << std::endl;
-    //     close(this->_fd);
-    //     unlink(_filename.c_str());
-    //     remove(_filename.c_str());
-    //     open_file();
-    //     std::string old_buffer = this->_log_msg;
-    //     this->_log_msg = "";
-    //     error("Tintin_reporter: There was a problem with \"" + _filename + "\". Recreating file...");
-    //     this->_log_msg = old_buffer;
-    // }
     write(this->_fd, this->_log_msg.c_str(), this->_log_msg.size());
     close(this->_fd);
+
     this->_log_msg = "";
 }
 

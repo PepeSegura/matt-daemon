@@ -3,7 +3,8 @@
 void signal_handler(int signum, siginfo_t *info, void *context)
 {
 	(void)info, (void)context;
-	reporter.warning("Signal(" + std::to_string(signum) + ") received: " + strsignal(signum));
+	if (signum != SIGCHLD)
+		reporter.warning("Signal(" + std::to_string(signum) + ") received: " + strsignal(signum));
 	if (signum == SIGINT || signum == SIGQUIT || signum == SIGABRT || signum == SIGTERM)
 		end_program = 1;
 }

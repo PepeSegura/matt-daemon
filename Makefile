@@ -7,7 +7,7 @@ SRCS = 										\
 		srcs/reporter/Tintin_reporter.cpp	\
 
 
-OBJS = $(SRCS:%.cpp=objs/%.o)
+OBJS = $(patsubst srcs/%.cpp, objs/srcs/%.o, $(SRCS))
 DEPS = $(OBJS:%.o=%.d)
 
 GUICLIENTSRCS = bonus/GUIClient.cpp
@@ -19,23 +19,27 @@ CXX = c++
 
 CXXFLAGS = -Wall -Wextra -Werror -Wshadow -fsanitize=address -g3
 CXXFLAGS +=	-I inc
+
 CPPFLAGS = -MMD
 GUICLIENT = Ben_AFK
 
-$(NAME): objs $(OBJS)
+$(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
-$(GUICLIENT): objs $(GUICLIENTOBJS)
+$(GUICLIENT): $(GUICLIENTOBJS)
 	$(CXX) $(CXXFLAGS) $(GUICLIENTOBJS) -o $(GUICLIENT) -lX11
 
-objs:
-	@mkdir -p objs/srcs/daemon objs/srcs/reporter objs/bonus
-
-objs/%.o: %.cpp
+objs/srcs/%.o: ./srcs/%.cpp
+	@mkdir -p $(dir $@)
+  $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+  
+objs/bonus/%.o: ./bonus/%.cpp
+	@mkdir -p $(dir $@)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-debug:: CXXFLAGS += -D DEBUG -g3 -fsanitize=address
-debug:: re
+bonus:: CXXFLAGS += -D BONUS
+bonus:: re
+bonus:: GUIClient
 
 all: $(NAME)
 
@@ -55,4 +59,4 @@ re:: all
 
 -include $(GUICLIENTDEPS)
 
-.PHONY: all clean fclean re GUIClient
+.PHONY: all clean fclean re bonus $(GUICLIENT)
