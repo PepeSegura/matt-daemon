@@ -96,7 +96,7 @@ void Matt_daemon:: create_daemon(void)
 		exit(EXIT_SUCCESS);
 	}
 
-	usleep(250 * 1000);
+	usleep(250 * 1000); // yo le metia un semaforo
 	// In the first child process
 	if (setsid() < 0)
 	{
@@ -116,7 +116,7 @@ void Matt_daemon:: create_daemon(void)
 		reporter.info("Matt_daemon: Closing second parent");
 		exit(EXIT_SUCCESS);
 	}
-	usleep(250 * 1000);
+	usleep(250 * 1000); // yo le metia un semaforo
 
 	// In the second child process (daemon)
 	// Change the working directory
