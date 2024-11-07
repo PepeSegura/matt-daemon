@@ -31,7 +31,7 @@ $(GUICLIENT): $(GUICLIENTOBJS)
 
 objs/srcs/%.o: ./srcs/%.cpp
 	@mkdir -p $(dir $@)
-  $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
   
 objs/bonus/%.o: ./bonus/%.cpp
 	@mkdir -p $(dir $@)

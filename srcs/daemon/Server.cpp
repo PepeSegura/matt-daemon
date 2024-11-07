@@ -6,25 +6,38 @@ constexpr int MAX_CLIENTS = 3;
 #include <memory>
 #define MAGIC_NBR 250000
 
-static void execute_command(const std::string &command, int client_socket)
+void execute_command(const std::string &command, int client_socket)
 {
     std::array<char, 128> buffer;
     std::string full_command = "timeout 2 bash -c '" + command + "' 2>&1";
-    std::shared_ptr<FILE> pipe(popen(full_command.c_str(), "r"), pclose);
+    FILE* pipe = popen(full_command.c_str(), "r");
 
     if (!pipe)
     {
         reporter.error("popen() failed!");
         end_program = 1;
+        return ;
     }
 
     int total_written = 0;
-    while (total_written < MAGIC_NBR && fgets(buffer.data(), 128, pipe.get()) != nullptr)
+    while (total_written < MAGIC_NBR && fgets(buffer.data(), 128, pipe) != nullptr)
     {
         total_written += buffer.size();
-        send(client_socket, buffer.data(), strlen(buffer.data()), 0);
+        int bytes_sent = send(client_socket, buffer.data(), strlen(buffer.data()), 0);
+        if (bytes_sent == -1) {
+            reporter.error("Failed to send data to client socket");
+            pclose(pipe);  // Ensure pclose() is called
+            return;
+        }
     }
 
+    int exit_status = pclose(pipe);  // pclose() returns the exit status of the command
+    if (WIFEXITED(exit_status) && WEXITSTATUS(exit_status) == 124) {
+        reporter.info("Matt_daemon: Remote shell timeout.");
+        send(client_socket, "Remote shell timeout.\n", 23, 0);
+    } else {
+        reporter.info("Matt_daemon: Command executed.");
+    }
 }
 
 static void parse_message(std::string message, int client_socket)
@@ -36,9 +49,9 @@ static void parse_message(std::string message, int client_socket)
         end_program = 1;
     }
     # ifdef BONUS
-    else if (message.find("shell: ") == 0)
+    else if (message.find("sh: ") == 0)
     {
-        std::string command = message.substr(7);
+        std::string command = message.substr(4);
         reporter.info("Matt_daemon: Command received: " + command);
 
         // Execute the command and get the output
