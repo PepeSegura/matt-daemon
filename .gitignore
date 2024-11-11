@@ -32,3 +32,4 @@ Ben_AFK
 *.exe
 *.out
 *.app
+.vscode/*

@@ -10,7 +10,7 @@ SRCS = 										\
 OBJS = $(patsubst srcs/%.cpp, objs/srcs/%.o, $(SRCS))
 DEPS = $(OBJS:%.o=%.d)
 
-GUICLIENTSRCS = bonus/GUIClient.cpp
+GUICLIENTSRCS = bonus/BenAFK.cpp
 
 GUICLIENTOBJS = $(GUICLIENTSRCS:%.cpp=objs/%.o)
 GUICLIENTDEPS = $(GUICLIENTOBJS:%.o=%.d)
@@ -27,7 +27,7 @@ $(NAME): $(OBJS)
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(NAME)
 
 $(GUICLIENT): $(GUICLIENTOBJS)
-	$(CXX) $(CXXFLAGS) $(GUICLIENTOBJS) -o $(GUICLIENT) -lX11
+	g++ $(CXXFLAGS) $(GUICLIENTOBJS) -o $(GUICLIENT) `pkg-config gtkmm-3.0 --cflags --libs`
 
 objs/srcs/%.o: ./srcs/%.cpp
 	@mkdir -p $(dir $@)
@@ -35,7 +35,7 @@ objs/srcs/%.o: ./srcs/%.cpp
   
 objs/bonus/%.o: ./bonus/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+	g++ $(CPPFLAGS) $(CXXFLAGS) `pkg-config gtkmm-3.0 --cflags --libs` -c $< -o $@
 
 bonus:: CXXFLAGS += -D BONUS
 bonus:: re
