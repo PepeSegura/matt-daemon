@@ -7,7 +7,10 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <thread>
-#include <atomic>
+#include <pthread.h>
+
+#define WINDOW_WIDTH 1200
+#define WINDOW_HEIGHT 1800
 
 class Ben_AFK : public Gtk::Window {
 public:
@@ -22,14 +25,12 @@ protected:
 
     // comms
     int sock = -1;
-    std::thread receive_thread;
-    std::atomic<bool> should_exit{false};
     bool connected = false;
     fd_set all_set;
 
     bool connect_to_server();
     void send_message(const std::string& message);
-    void receive_messages();
+    bool receive_messages();
 
     // GUI
     Gtk::Box main_box{Gtk::ORIENTATION_VERTICAL};
@@ -42,11 +43,14 @@ protected:
     void apply_css();
     void apply_default_style(const Glib::RefPtr<Gtk::CssProvider>& css_provider);
 
+    pthread_mutex_t msg_mtx;
+
 };
 
 const std::string default_css = R"(
 #main_box {
     background: #f0f0f0;
+    font-size: 24px;
 }
 
 #scrolled_window {
@@ -55,18 +59,18 @@ const std::string default_css = R"(
 
 #message_history text {
     background: #000000;
-    font-size: 14px;
+    font-size: 24px;
     color: #28df28;
     padding: 5px 10px;
 }
 
 #message_entry {
-    font-size: 16px;
+    font-size: 24px;
     color: #0a0a0a;
 }
 
 #send_button {
-    font-size: 14px;
+    font-size: 24px;
     color: #0f0f0f;
     background: #00a0ff;
 }
@@ -74,7 +78,7 @@ const std::string default_css = R"(
 #prefix_toggle {
     background: #f0f0f0;
     color: #000000;
-    font-size: 14px;
+    font-size: 24px;
 }
 
 #prefix_toggle:checked {

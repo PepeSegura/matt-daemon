@@ -2,7 +2,7 @@
 
 Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
     set_title("Ben_AFK");
-    set_default_size(600, 900);
+    set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT);
 
     // msg history
     message_history.set_editable(false);
@@ -36,7 +36,8 @@ Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
 
     connected = connect_to_server();
     if (connected) {
-        receive_thread = std::thread(&Ben_AFK::receive_messages, this);
+        Glib::signal_timeout().connect(sigc::mem_fun(*this, &Ben_AFK::receive_messages), 33);
+        std::cerr << "Created recv task" << std::endl;
     } else {
         exit(1);
     }
@@ -47,9 +48,6 @@ Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
 Ben_AFK::~Ben_AFK() {
     if (connected) {
         ::close(sock);
-    }
-    if (receive_thread.joinable()) {
-        receive_thread.detach();
     }
 }
 
@@ -127,72 +125,63 @@ void Ben_AFK::on_entry_activated() {
 }
 
 bool Ben_AFK::on_delete_event(GdkEventAny* event) {
-    should_exit = true;
     if (connected) {
         ::close(sock);
         connected = false;
     }
 
-    return Gtk::Window::on_delete_event(event);
+    return Gtk::Window::on_delete_event(event), exit(0), true;
 }
 
 void Ben_AFK::send_message(const std::string& message) {
     fd_set write_set = all_set;
 
-    select(sock + 1, NULL, &write_set, NULL,NULL);
+    select(sock + 1, NULL, &write_set, NULL, NULL);
+
 
     if (connected && !message.empty() && FD_ISSET(sock, &write_set)) {
         //printf("Sending: (%s) through fd %i, send returned %li\n", message.c_str(), sock, );
-        send(sock, message.c_str(), message.size(), 0);
-
+        
         //update msg history
         Glib::RefPtr<Gtk::TextBuffer> msg_buffer = message_history.get_buffer();
-        msg_buffer->insert(msg_buffer->end(), "Ben_AFK: " + message);
+        msg_buffer->insert(msg_buffer->end(), "\nBen_AFK: " + message);
 
         auto mark = msg_buffer->create_mark(msg_buffer->end());
-        message_history.scroll_to(mark);
+        message_history.scroll_to(mark); 
+        send(sock, message.c_str(), message.size(), 0);
     }
 }
 
-void Ben_AFK::receive_messages() {
-    fd_set read_set;
-    std::string big_buffer = "";
+bool Ben_AFK::receive_messages() {
     char buffer[1024];
-    while (!should_exit) {
-        read_set = all_set;
-        select(sock + 1, &read_set, NULL, NULL,NULL);
-        if (FD_ISSET(sock, &read_set)) {
-            ssize_t bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
-            if (bytes_received > 0) {
-                buffer[bytes_received] = '\0';
-                //printf("Received: (%s)\n", buffer);
-                big_buffer += buffer;
+    struct timeval tv;
 
-                size_t pos = 0;
-                while ((pos = big_buffer.find('\n')) != std::string::npos) {
-                    std::string server_message = "Matt_daemon: " + big_buffer.substr(0, pos) + "\n";
+    tv.tv_sec = 0;
+    tv.tv_usec = 0;
+    fd_set read_set = all_set;
+    select(sock + 1, &read_set, NULL, NULL, &tv);
+    if (FD_ISSET(sock, &read_set)) {
+        ssize_t bytes_received = recv(sock, buffer, sizeof(buffer) - 1, 0);
+        if (bytes_received > 0) {
+            buffer[bytes_received] = '\0';
+            Glib::RefPtr<Gtk::TextBuffer> msg_buffer = message_history.get_buffer();
+            msg_buffer->insert(msg_buffer->end(), buffer);
 
-                    // update msg history in main thread
-                    Glib::RefPtr<Gtk::TextBuffer> msg_buffer = message_history.get_buffer();
-                    msg_buffer->insert(msg_buffer->end(), server_message);
-                    big_buffer = big_buffer.substr(pos + 1);
-
-                    auto mark = msg_buffer->create_mark(msg_buffer->end());
-                    message_history.scroll_to(mark);
-                }
-            } else {
-                break ;
-            }
+            auto mark = msg_buffer->create_mark(msg_buffer->end());
+            message_history.scroll_to(mark);
+        } else {
+            return false;
         }
     }
+    return true;
 }
 
 int main(int argc, char* argv[]) {
-    auto app = Gtk::Application::create(argc, argv, "com.MatiasEndomoniao.BenAFK");
+    Gtk::Main kit(argc, argv);
 
     Ben_AFK window;
 
-    app->run(window);
+    Gtk::Main::run(window);
 
     return 0;
 }
