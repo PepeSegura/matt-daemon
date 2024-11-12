@@ -20,10 +20,13 @@ Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
     message_entry.set_name("message_entry");
     send_button.set_name("send_button");
     prefix_toggle.set_name("prefix_toggle");
+    
     main_box.pack_start(scrolled_window, Gtk::PACK_EXPAND_WIDGET);
     main_box.pack_start(message_entry, Gtk::PACK_SHRINK);
-    button_box.pack_start(send_button, Gtk::PACK_SHRINK);
-    button_box.pack_start(prefix_toggle, Gtk::PACK_SHRINK);
+
+    button_box.pack_start(send_button, Gtk::PACK_EXPAND_WIDGET, 0);
+    button_box.pack_start(prefix_toggle, Gtk::PACK_EXPAND_WIDGET, 0);
+
     main_box.pack_start(button_box, Gtk::PACK_SHRINK);
 
     add(main_box);
@@ -54,7 +57,7 @@ Ben_AFK::~Ben_AFK() {
 void Ben_AFK::apply_css() {
     auto css_provider = Gtk::CssProvider::create();
 
-    const std::string css_path = "bonus/Ben_AFK.css";
+    const std::string css_path = "bonus/active.css";
     try {
         if (!css_provider->load_from_path(css_path)) {
             std::cerr << "Error: Failed to load CSS from " << css_path << std::endl;
@@ -140,11 +143,19 @@ void Ben_AFK::send_message(const std::string& message) {
 
 
     if (connected && !message.empty() && FD_ISSET(sock, &write_set)) {
-        //printf("Sending: (%s) through fd %i, send returned %li\n", message.c_str(), sock, );
-        
         //update msg history
         Glib::RefPtr<Gtk::TextBuffer> msg_buffer = message_history.get_buffer();
-        msg_buffer->insert(msg_buffer->end(), "\nBen_AFK: " + message);
+
+        auto tag_table = msg_buffer->get_tag_table();
+        Glib::RefPtr<Gtk::TextTag> ben_afk_tag = tag_table->lookup("ben_afk_message");
+        if (!ben_afk_tag) {
+            ben_afk_tag = Gtk::TextBuffer::Tag::create("ben_afk_message");
+            ben_afk_tag->property_foreground() = "#ff0000";
+            ben_afk_tag->property_weight() = Pango::WEIGHT_BOLD;
+            msg_buffer->get_tag_table()->add(ben_afk_tag);
+        }
+
+        msg_buffer->insert_with_tag(msg_buffer->end(), "Ben_AFK: " + message + "\n", ben_afk_tag);
 
         auto mark = msg_buffer->create_mark(msg_buffer->end());
         message_history.scroll_to(mark); 

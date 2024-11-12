@@ -1,0 +1,38 @@
+#main_box {
+    background: #f0f0f0;
+    font-size: 24px;
+}
+
+#scrolled_window {
+    background: #f0f0f0;
+}
+
+#message_history text{
+    background: url("../assets/darkzuaje.jpg");
+    font-size: 24px;
+    color: #28df28;
+    padding: 5px 10px;
+}
+
+#message_entry {
+    font-size: 24px;
+    color: #0a0a0a;
+}
+
+#send_button {
+    font-size: 24px;
+    color: #0f0f0f;
+    background: #00a0ff;
+}
+
+#prefix_toggle {
+    background: #f0f0f0;
+    color: #000000;
+    font-size: 24px;
+}
+
+#prefix_toggle:checked {
+    background: #4CAF50;
+    color: #000000;
+    font-size: 24px;
+}

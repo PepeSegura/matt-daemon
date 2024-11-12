@@ -39,7 +39,7 @@ protected:
     Gtk::TextView message_history;
     Gtk::Entry message_entry;
     Gtk::Button send_button{"Send"};
-    Gtk::ToggleButton prefix_toggle{"'sh:'"};
+    Gtk::ToggleButton prefix_toggle{"Remote Shell"};
     void apply_css();
     void apply_default_style(const Glib::RefPtr<Gtk::CssProvider>& css_provider);
 
@@ -57,8 +57,8 @@ const std::string default_css = R"(
     background: #f0f0f0;
 }
 
-#message_history text {
-    background: #000000;
+#message_history text{
+    background: url("../assets/darkzuaje.jpg");
     font-size: 24px;
     color: #28df28;
     padding: 5px 10px;
@@ -83,5 +83,7 @@ const std::string default_css = R"(
 
 #prefix_toggle:checked {
     background: #4CAF50;
+    color: #000000;
+    font-size: 24px;
 }
 )";

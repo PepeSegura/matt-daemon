@@ -64,14 +64,17 @@ static bool create_directories(const std::string& path)
 void Tintin_reporter::open_file(void)
 {
     if (!create_directories(_backup_dir))
+    {
         std::cerr << "Error: Failed to create backup directory structure.\n";
+        exit(EXIT_FAILURE);
+    }
 
     _fd = open(_filename.c_str(), O_RDWR | O_CREAT | O_APPEND, 0666);
     if (_fd == -1)
     {
         _fd = STDERR_FILENO;
         std::cerr << "Cannot open: [" << _filename << "] using std::cerr as output" << std::endl;
-        return ;
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -86,7 +89,10 @@ Tintin_reporter:: Tintin_reporter(std::string filename) : _filename(filename)
         _backup_dir = "backups";
 
     if (!create_directories(_backup_dir))
+    {
         std::cerr << "Error: Failed to create backup directory structure.\n";
+        exit(EXIT_FAILURE);
+    }
 
     if (_filename == "/dev/stdout")
         _fd = STDOUT_FILENO;
