@@ -1,6 +1,6 @@
 #include "BenAFK.hpp"
 
-Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
+Ben_AFK::Ben_AFK(std::string css_path): button_box(Gtk::ORIENTATION_HORIZONTAL) {
     set_title("Ben_AFK");
     set_default_size(WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -31,7 +31,7 @@ Ben_AFK::Ben_AFK(): button_box(Gtk::ORIENTATION_HORIZONTAL) {
 
     add(main_box);
 
-    apply_css();
+    apply_css(css_path);
 
     // connect signals
     send_button.signal_clicked().connect(sigc::mem_fun(*this, &Ben_AFK::on_send_button_clicked));
@@ -54,10 +54,9 @@ Ben_AFK::~Ben_AFK() {
     }
 }
 
-void Ben_AFK::apply_css() {
+void Ben_AFK::apply_css(std::string css_path) {
     auto css_provider = Gtk::CssProvider::create();
 
-    const std::string css_path = "bonus/active.css";
     try {
         if (!css_provider->load_from_path(css_path)) {
             std::cerr << "Error: Failed to load CSS from " << css_path << std::endl;
@@ -188,9 +187,13 @@ bool Ben_AFK::receive_messages() {
 }
 
 int main(int argc, char* argv[]) {
+    std::string css_path = "bonus/themes/default.css";
+    if (argc > 1)
+        css_path = argv[1];
+
     Gtk::Main kit(argc, argv);
 
-    Ben_AFK window;
+    Ben_AFK window(css_path);
 
     Gtk::Main::run(window);
 

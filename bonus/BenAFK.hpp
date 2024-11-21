@@ -9,12 +9,12 @@
 #include <thread>
 #include <pthread.h>
 
-#define WINDOW_WIDTH 1200
-#define WINDOW_HEIGHT 1800
+#define WINDOW_HEIGHT 1000
+#define WINDOW_WIDTH (WINDOW_HEIGHT / 1.5)
 
 class Ben_AFK : public Gtk::Window {
 public:
-    Ben_AFK();
+    Ben_AFK(std::string css_path);
     virtual ~Ben_AFK();
 
 protected:
@@ -40,7 +40,7 @@ protected:
     Gtk::Entry message_entry;
     Gtk::Button send_button{"Send"};
     Gtk::ToggleButton prefix_toggle{"Remote Shell"};
-    void apply_css();
+    void apply_css(std::string css_path);
     void apply_default_style(const Glib::RefPtr<Gtk::CssProvider>& css_provider);
 
     pthread_mutex_t msg_mtx;
@@ -49,41 +49,56 @@ protected:
 
 const std::string default_css = R"(
 #main_box {
-    background: #f0f0f0;
-    font-size: 24px;
+    padding: 15px;
+    border: 2px solid #ccc;
+    border-radius: 10px;
+    background-color: #f9f9f9;
 }
-
+#message_history {
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #ffffff;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
 #scrolled_window {
-    background: #f0f0f0;
+    border-radius: 10px;
+    border: none;
+    background-color: #f5f5f5;
+    padding: 5px;
 }
-
-#message_history text{
-    background: url("../assets/darkzuaje.jpg");
-    font-size: 24px;
-    color: #28df28;
-    padding: 5px 10px;
-}
-
 #message_entry {
-    font-size: 24px;
-    color: #0a0a0a;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    background-color: #ffffff;
+}
+#send_button, #prefix_toggle {
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid #888;
+    box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.2);
+    background-color: #e0e0e0;
+    margin-right: 10px;
+    transition: background-color 0.3s;
+}
+#send_button:hover, #prefix_toggle:hover {
+    background-color: #d4d4d4;
+}
+#send_button:active, #prefix_toggle:active {
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.3) inset;
+}
+scrollbar {
+    background: transparent;
+}
+scrollbar trough {
+    background-color: transparent;
+}
+scrollbar slider {
+    background-color: #ccc;
+    border-radius: 5px;
 }
 
-#send_button {
-    font-size: 24px;
-    color: #0f0f0f;
-    background: #00a0ff;
-}
-
-#prefix_toggle {
-    background: #f0f0f0;
-    color: #000000;
-    font-size: 24px;
-}
-
-#prefix_toggle:checked {
-    background: #4CAF50;
-    color: #000000;
-    font-size: 24px;
-}
 )";

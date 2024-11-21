@@ -17,7 +17,7 @@ GUICLIENTDEPS = $(GUICLIENTOBJS:%.o=%.d)
 
 CXX = c++
 
-CXXFLAGS = -Wall -Wextra -Werror -Wshadow -g3 #-fsanitize=address -g3
+CXXFLAGS = -Wall -Wextra -Werror -Wshadow
 CXXFLAGS +=	-I inc
 
 CPPFLAGS = -MMD
